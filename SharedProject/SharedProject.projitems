@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)SharedSource\Plugin.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SharedSource\Utils.cs" />
   </ItemGroup>
 </Project>
