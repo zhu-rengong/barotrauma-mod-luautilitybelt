@@ -14,14 +14,14 @@ end
 ---@return T
 local function clone(obj)
     ---@type { table: table }
-    local copies = {}
+    local copyCaches = {}
 
     local function deepCopy(o)
         if type(o) ~= 'table' then return o end
-        local copy = copies[o]
+        local copy = copyCaches[o]
         if copy then return copy end
         local _o = {}
-        copies[o] = _o
+        copyCaches[o] = _o
         for k, v in pairs(o) do
             if type(v) == 'table' then
                 _o[k] = deepCopy(v)
@@ -54,13 +54,20 @@ M._classes = {}
 ---@param name string
 ---@return Class.Config
 function M.getConfig(name)
-    if M._classConfig[name] == nil then
-        M._classConfig[name] = setmetatable({
+    local config = M._classConfig[name]
+    if config == nil then
+        config = setmetatable({
             name = name,
             extendsMap = {}
         }, { __index = Config })
+        M._classConfig[name] = config
     end
-    return M._classConfig[name]
+    return config
+end
+
+---@param class Class.Base
+local function instantiate(class)
+    return setmetatable({}, class)
 end
 
 ---@generic T: string
@@ -73,6 +80,7 @@ function M.declare(name)
     end
 
     local mt = {}
+    local class = setmetatable({}, mt)
 
     function mt:__index(k)
         for _, extends in pairs(config.extendsMap) do
@@ -83,7 +91,9 @@ function M.declare(name)
         end
     end
 
-    local class = setmetatable({}, mt)
+    function mt:__call(...)
+        return instantiate(class)(...)
+    end
 
     function class:__index(k)
         local v = class[k]
@@ -128,19 +138,14 @@ end
 
 ---@generic T: string
 ---@param name `T`
----@param obj table
 ---@return T
-function M.new(name, obj)
+function M.new(name)
     local class = M._classes[name]
     if class == nil then
         M._errorHandler(('class %q not found'):format(name))
     end
 
-    obj = obj or {}
-
-    local instance = setmetatable(obj, class)
-
-    return instance
+    return instantiate(class)
 end
 
 return M

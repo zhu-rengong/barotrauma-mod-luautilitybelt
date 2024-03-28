@@ -3,15 +3,10 @@ local utils = require "utilbelt.csharpmodule.Shared.Utils"
 local spedit = require "utilbelt.spedit"
 local moses = require "moses"
 
----@class itembuilderblock
----@field _prefab Barotrauma.ItemPrefab
----@field _pool_weights? number[]
----@field _pool_objects? itembuilderblock[]
----@field _amount? number
----@field _stacks? number
----@field _getamount? fun(self:itembuilderblock, context:itembuilderspawnctx):number
----@field _getrepetitions? fun(self:itembuilderblock, context:itembuilderspawnctx):integer
----@field _spedit? spedit
+---@class itembuildsarg : itembuilderblockarg, { [integer]: itembuilderblockarg }
+---@class itembuilds : itembuilderblock[]
+
+---@class itembuilderblockarg
 ---@field ref itembuilder
 ---@field identifier string
 ---@field tags? string
@@ -20,182 +15,215 @@ local moses = require "moses"
 ---@field equip? boolean
 ---@field install? boolean
 ---@field inheritchannel? boolean
----@field amount? number|{[1]:number,[2]:number}
----@field amountround? boolean # default is `falsy`
----@field stacks? number|{[1]:number,[2]:number}
+---@field amount? number|{ [1]: number, [2]: number}
+---@field amountround? boolean
+---@field stacks? number|{ [1]: number, [2]: number}
 ---@field fillinventory? boolean
 ---@field properties? sptbl
----@field serverevents? string|{[1]:string,[2]:integer?}|string[]|{[1]:string,[2]:integer?}[]
----@field onspawned? fun(item:Barotrauma.Item)
----@field inventory? itembuilderblock|itembuilderblock[]
----@field pool? {[1]:number,[2]:itembuilderblock|itembuilderblock[]}[]
+---@field serverevents? string|string[]|{ [1]: string, [2]: integer? }|{ [1]: string, [2]: integer? }[]
+---@field onspawned? fun(item:userdata)
+---@field inventory? itembuildsarg
+---@field pool? { [1]: number, [2]: itembuildsarg }[]
+
+---@class itembuilderblock
+---@field mark string
+---@field logWithMark function
+---@field amountDefined boolean
+---@field amount? number
+---@field amountRange? { [1]: number, [2]: number }
+---@field amountRound? boolean
+---@field stacksDefined boolean
+---@field stacks? number
+---@field stacksRange? { [1]: number, [2]: number }
+---@field calcAmount fun(self:itembuilderblock, context:itembuilderspawnctx, round?: boolean):number
+---@field isRef boolean
+---@field ref itembuilder
+---@field isPrefab boolean
+---@field identifier userdata
+---@field itemPrefab userdata
+---@field tags? string
+---@field quality? integer
+---@field slotIndex? integer
+---@field equip? boolean
+---@field install? boolean
+---@field inheritChannel? boolean
+---@field fillInventory? boolean
+---@field spedit? spedit
+---@field serverEvents? { [1]: string, [2]: integer }[]
+---@field onSpawned? fun(item:userdata)
+---@field inventory? itembuilder
+---@field isPool boolean
+---@field poolWeights? number[]
+---@field poolBuilders? itembuilder[]
 
 ---@class itembuilderspawnctx
----@field inventory? Barotrauma.Inventory|Barotrauma.ItemInventory|Barotrauma.CharacterInventory
----@field atinventory boolean
----@field atiteminventory boolean
----@field worldpos? Microsoft.Xna.Framework.Vector2
----@field _character? Barotrauma.Character
+---@field inventory? userdata
+---@field atInventory boolean
+---@field atItemInventory boolean
+---@field worldPosition? userdata
+---@field character? userdata
+---@field iterateOverPool? boolean
 
----@param itembuilds itembuilderblock[]
+local spawn
+
+---@param item userdata
+---@param itemBlock itembuilderblock
 ---@param context itembuilderspawnctx
----@param iterateoverpool boolean?
----@param debugname? string
-local function spawn(itembuilds, context, iterateoverpool, debugname)
-    local log = function(text, pattern)
-        if debugname then
-            log(("[DebugName:%s] %s"):format(debugname, text), pattern)
-        else
-            log(text, pattern)
+local function onSpawned(item, itemBlock, context)
+    local logWithMark = itemBlock.logWithMark
+
+    if itemBlock.tags then
+        item.Tags = itemBlock.tags
+    end
+
+    if context.atInventory then
+        if item.ParentInventory ~= context.inventory then
+            local alreadyContained = false
+            if context.atItemInventory then
+                if itemBlock.tags and context.inventory:TryPutItem(item, nil) then
+                    alreadyContained = true
+                end
+            end
+            if not alreadyContained then
+                logWithMark(("无法将物品'%s'存放至%s！"):format(tostring(item), tostring(context.inventory.Owner)), 'w')
+            end
+        end
+
+        if not context.atItemInventory then
+            if context.character == nil then
+                context.character = context.inventory.Owner
+            end
+
+            if itemBlock.slotIndex then
+                if not context.inventory:CanBePutInSlot(item, itemBlock.slotIndex, false)
+                    or not context.inventory:TryPutItem(item, itemBlock.slotIndex, true, true, context.character, true, false) then
+                    logWithMark(("无法将物品'%s'存放至%s的第%i槽位！"):format(tostring(item), tostring(context.inventory.Owner), itemBlock.slotIndex), 'w')
+                end
+            end
         end
     end
-    ---@param item Barotrauma.Item
-    ---@param itemblock itembuilderblock
-    ---@param context itembuilderspawnctx
-    local function onspawned(item, itemblock, context)
-        if itemblock.tags then
-            item.Tags = itemblock.tags
-        end
 
-        if context.atinventory then
-            if context.atiteminventory then
-                if item.ParentInventory ~= context.inventory then
-                    local containable = false
-                    if itemblock.tags and context.inventory.TryPutItem(item, nil) then
-                        containable = true
-                    end
-                    if not containable then
-                        log(("Cannot put %s in %s"):format(tostring(item), tostring(context.inventory.Owner)), 'e')
-                    end
-                end
-            else
-                if context._character == nil then
-                    context._character = context.inventory.Owner
-                end
-
-                if itemblock.slotindex then
-                    if not context.inventory.CanBePutInSlot(item, itemblock.slotindex, false)
-                        or not context.inventory.TryPutItem(item, itemblock.slotindex, true, true, context._character, true, false) then
-                        log(("Cannot put %s in %s(slot:%i)"):format(tostring(item), tostring(context.inventory.Owner), itemblock.slotindex), 'e')
-                    end
-                end
-
-                if itemblock.equip then
-                    utils.Equip(context._character, item)
-                end
-            end
-
-            if itemblock.inheritchannel and context._character then
-                local headset = context._character.Inventory.GetItemInLimbSlot(InvSlotType.Headset)
-                if headset then
-                    local wifi = utils.GetComponent(headset, "WifiComponent")
-                    if wifi then
-                        spedit {
-                            [{ "WifiComponent", "Channel" }] = wifi.Channel,
-                            [{ "WifiComponent", "TeamID" }] = wifi.TeamID,
-                            [{ "WifiComponent", "AllowCrossTeamCommunication" }] = wifi.AllowCrossTeamCommunication,
-                        }:apply(item, log)
-                    end
+    if context.character then
+        if itemBlock.inheritChannel then
+            local headset = context.character.Inventory.GetItemInLimbSlot(InvSlotType.Headset)
+            if headset then
+                local wifi = Game.GetWifiComponent(headset)
+                if wifi then
+                    spedit {
+                        WifiComponent = {
+                            channel = wifi.Channel,
+                            teamid = wifi.TeamID,
+                            allowcrossteamcommunication = wifi.AllowCrossTeamCommunication,
+                        }
+                    }:apply(item, logWithMark)
                 end
             end
         end
 
-        if itemblock._spedit then
-            itemblock._spedit:apply(item, log)
+        if itemBlock.equip then
+            utils.Equip(context.character, item)
         end
+    end
 
-        if itemblock.inventory then
-            local itemContainer = utils.GetComponent(item, "ItemContainer")
-            if itemContainer then
-                spawn(itemblock.inventory, {
-                    atinventory = true,
-                    atiteminventory = true,
-                    inventory = itemContainer.Inventory,
-                    _character = context._character
-                }, iterateoverpool, debugname)
-            else
-                log(("Cannot spawn items in item(%s)'s inventory since it has no inventory!"):format(item.Prefab
-                    .Identifier.Value), 'e')
-            end
+    if itemBlock.spedit then
+        itemBlock.spedit:apply(item, logWithMark)
+    end
+
+    if itemBlock.inventory then
+        local itemContainer = utils.GetComponent(item, "ItemContainer")
+        if itemContainer then
+            spawn(itemBlock.inventory.itemBuilds, {
+                atInventory = true,
+                atItemInventory = true,
+                inventory = itemContainer.Inventory,
+                character = context.character,
+                iterateOverPool = context.iterateOverPool
+            })
+        else
+            logWithMark(("无法生成子物品！原因是没有找到物品'%s'的容器。"):format(tostring(item)), 'e')
         end
+    end
 
-        if SERVER and itemblock.serverevents then
-            for _, serverevent in ipairs(itemblock.serverevents) do
+    if SERVER then
+        if itemBlock.serverEvents then
+            for _, event in ipairs(itemBlock.serverEvents) do
                 local index = 0
                 for _, component in ipairs(item.Components) do
-                    if component.Name:lower() == serverevent[1]:lower() then
+                    if component.Name:lower() == event[1]:lower() then
                         index = index + 1
-                        if serverevent[2] == nil or serverevent[2] == index then
+                        if event[2] == nil or event[2] == index then
                             item.CreateServerEvent(component, component)
                         end
                     end
                 end
             end
         end
-
-        if itemblock.onspawned then
-            itemblock.onspawned(item)
-        end
     end
 
-    for _, itemblock in ipairs(itembuilds) do
-        if type(itemblock) == "string" then
-            debugname = #itemblock > 0 and itemblock or nil
-        else
-            if itemblock.ref then
-                local num = itemblock:_getrepetitions(context)
-                for _ = 1, num, 1 do
-                    spawn(itemblock.ref._itembuilds, context, iterateoverpool, nil)
-                end
-            elseif itemblock.pool then
-                local num = itemblock:_getrepetitions(context)
-                for _ = 1, num, 1 do
-                    if not iterateoverpool then
-                        local object = utils.SelectDynValueWeightedRandom(itemblock._pool_objects, itemblock._pool_weights)
-                        spawn(object, context, iterateoverpool, debugname)
-                    else
-                        for _, object in ipairs(itemblock._pool_objects) do
-                            spawn(object, context, iterateoverpool, debugname)
-                        end
+    if itemBlock.onSpawned then
+        itemBlock.onSpawned(item)
+    end
+end
+
+---@param itemBuilds itembuilderblock[]
+---@param context itembuilderspawnctx
+spawn = function(itemBuilds, context)
+    for _, itemBlock in ipairs(itemBuilds) do
+        if itemBlock.ref then
+            local num = itemBlock:calcAmount(context, true)
+            while num > 0 do
+                num = num - 1
+                spawn(itemBlock.ref.itemBuilds, context)
+            end
+        elseif itemBlock.pool then
+            local num = itemBlock:calcAmount(context, true)
+            while num > 0 do
+                if not context.iterateOverPool then
+                    ---@type itembuilder
+                    local object = utils.SelectDynValueWeightedRandom(itemBlock.poolBuilders, itemBlock.poolWeights)
+                    spawn(object.itemBuilds, context)
+                else
+                    for _, object in ipairs(itemBlock.poolBuilders) do
+                        spawn(object.itemBuilds, context)
                     end
                 end
-            else
-                local amount = itemblock:_getamount(context)
-                local num = math.ceil(amount)
-                for i = 1, num, 1 do
-                    local condition = nil
-                    if i == num and amount < num then
-                        condition = table.pack(math.modf(amount))[2] * itemblock._prefab.Health
-                    end
-                    if context.worldpos then
-                        local shouldspawn = true
-                        if itemblock.install then
-                            for _, sub in pairs(Submarine.MainSubs) do
-                                local borders, worldpos = sub.Borders, sub.WorldPosition
-                                local worldrect = Rectangle(worldpos.X - borders.Width / 2, worldpos.Y + borders.Height / 2,
-                                    borders.Width, borders.Height)
-                                if sub.RectContains(worldrect, context.worldpos, true) then
-                                    shouldspawn = false
-                                    Entity.Spawner.AddItemToSpawnQueue(itemblock._prefab, context.worldpos - sub.Position,
-                                        sub, condition, itemblock.quality, function(item)
-                                            onspawned(item, itemblock, context)
-                                        end)
-                                    break
-                                end
+            end
+        elseif itemBlock.isPrefab then
+            local amount = itemBlock:calcAmount(context)
+            local num = math.ceil(amount)
+            for i = 1, num, 1 do
+                local condition = nil
+                if i == num and amount < num then
+                    condition = table.pack(math.modf(amount))[2] * itemBlock.itemPrefab.Health
+                end
+                if context.worldPosition then
+                    local notSpawnYet = true
+                    if itemBlock.install then
+                        for _, sub in pairs(Submarine.MainSubs) do
+                            local borders, worldPosition = sub.Borders, sub.WorldPosition
+                            local worldrect = Rectangle(worldPosition.X - borders.Width / 2, worldPosition.Y + borders.Height / 2,
+                                borders.Width, borders.Height)
+                            if sub.RectContains(worldrect, context.worldPosition, true) then
+                                Entity.Spawner.AddItemToSpawnQueue(itemBlock.itemPrefab, context.worldPosition - sub.Position,
+                                    sub, condition, itemBlock.quality, function(item)
+                                        onSpawned(item, itemBlock, context)
+                                    end)
+                                break
+                                notSpawnYet = false
                             end
                         end
-                        if shouldspawn then
-                            Entity.Spawner.AddItemToSpawnQueue(itemblock._prefab, context.worldpos, condition,
-                                itemblock.quality, function(item)
-                                    onspawned(item, itemblock, context)
-                                end)
-                        end
-                    elseif context.inventory then
-                        Entity.Spawner.AddItemToSpawnQueue(itemblock._prefab, context.inventory, condition,
-                            itemblock.quality, function(item)
-                                onspawned(item, itemblock, context)
+                    end
+                    if notSpawnYet then
+                        Entity.Spawner.AddItemToSpawnQueue(itemBlock.itemPrefab, context.worldPosition, condition,
+                            itemBlock.quality, function(item)
+                                onSpawned(item, itemBlock, context)
                             end)
                     end
+                elseif context.inventory then
+                    Entity.Spawner.AddItemToSpawnQueue(itemBlock.itemPrefab, context.inventory, condition,
+                        itemBlock.quality, function(item)
+                            onSpawned(item, itemBlock, context)
+                        end)
                 end
             end
         end
@@ -203,220 +231,293 @@ local function spawn(itembuilds, context, iterateoverpool, debugname)
 end
 
 ---@class itembuilder
----@overload fun(itembuilds:itembuilderblock|itembuilderblock[]):itembuilder
----@field _invalid boolean
----@field _itembuilds itembuilderblock[]
-local itembuilder = {}
+---@field itemBuilds itembuilderblock[]
+---@overload fun(itemBuildsArg: itembuildsarg, debugName?: string, parentMark?: string):self
+local m = Class 'itembuilder'
+m._ISITEMBUILDER = true
 
----@param worldpos Microsoft.Xna.Framework.Vector2
----@param iterateoverpool boolean?
-function itembuilder:spawnat(worldpos, iterateoverpool)
-    spawn(self._itembuilds, {
-        atinventory = false,
-        atiteminventory = false,
-        worldpos = worldpos
-    }, iterateoverpool, nil)
-end
+---@param itemBuildsArg itembuildsarg
+---@param debugName? string
+---@param parentMark? string
+function m:__init(itemBuildsArg, debugName, parentMark)
+    local itemBuilds = {}
+    self.itemBuilds = itemBuilds
 
----@param container Barotrauma.Item
----@param iterateoverpool boolean?
-function itembuilder:spawnin(container, iterateoverpool)
-    if container.OwnInventory then
-        spawn(self._itembuilds, {
-            atinventory = true,
-            atiteminventory = true,
-            inventory = container.OwnInventory
-        }, iterateoverpool, nil)
-    else
-        self:spawnat(container.WorldPosition, iterateoverpool)
-    end
-end
+    local initialIndexType = type(next(itemBuildsArg))
+    itemBuildsArg = (initialIndexType == "number" or initialIndexType == "nil") and itemBuildsArg or { itemBuildsArg }
 
----@param character Barotrauma.Character
----@param iterateoverpool boolean?
-function itembuilder:give(character, iterateoverpool)
-    if character.Inventory then
-        spawn(self._itembuilds, {
-            atinventory = true,
-            atiteminventory = false,
-            inventory = character.Inventory
-        }, iterateoverpool, nil)
-    else
-        self:spawnat(character.WorldPosition, iterateoverpool)
-    end
-end
+    moses.forEachi(itemBuildsArg, function(itemBlockArg, index)
+        local mark = parentMark and ("%s-%i"):format(parentMark, index) or tostring(index)
 
-itembuilder.__index = itembuilder
-setmetatable(itembuilder, {
-    ---@param itembuilds itembuilderblock|itembuilderblock[]
-    __call = function(_, itembuilds)
-        ---@param itblds itembuilderblock|itembuilderblock[]
-        ---@param debugname? string
-        local function construct(itblds, debugname)
-            local log = function(text, pattern)
-                if debugname then
-                    log(("[DebugName:%s] %s"):format(debugname, text), pattern)
-                else
-                    log(text, pattern)
+        local function logWithMark(text, pattern)
+            if debugName then
+                log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, debugName, text), pattern)
+            else
+                log(("[层级索引:%s] %s"):format(mark, text), pattern)
+            end
+        end
+
+        if type(itemBlockArg) == "string" then
+            debugName = #itemBlockArg > 0 and itemBlockArg or nil
+            return
+        end
+
+        ---@type itembuilderblock
+        local itemBlock = { isRef = false, isPool = false, isPrefab = false }
+
+        local function initItemBlockToBuilds()
+            itemBlock.mark = mark
+            itemBlock.logWithMark = logWithMark
+
+            itemBlock.amountRound = itemBlockArg.amountround
+            itemBlock.tags = itemBlockArg.tags
+            itemBlock.quality = itemBlockArg.quality
+            itemBlock.slotIndex = itemBlockArg.slotindex
+            itemBlock.equip = itemBlockArg.equip
+            itemBlock.install = itemBlockArg.install
+            itemBlock.inheritChannel = itemBlockArg.inheritchannel
+            itemBlock.fillInventory = itemBlockArg.fillinventory
+            itemBlock.onSpawned = itemBlockArg.onspawned
+
+            itemBlock.amountDefined = false
+            if type(itemBlockArg.amount) == "number" then
+                if itemBlockArg.amount >= 0 then
+                    itemBlock.amount = itemBlockArg.amount
+                    itemBlock.amountDefined = true
+                end
+            elseif type(itemBlockArg.amount) == "table" then
+                local amountMin, amountMax = itemBlockArg.amount[1], itemBlockArg.amount[2]
+                if type(amountMin) == "number"
+                    and type(amountMax) == "number"
+                    and amountMin >= 0
+                    and amountMax >= 0
+                then
+                    if amountMin > amountMax then
+                        amountMin, amountMax = amountMax, amountMin
+                    end
+                    itemBlock.amountRange = { amountMin, amountMax }
+                    itemBlock.amountDefined = true
                 end
             end
-            local k1type = type(next(itblds))
-            itblds = (k1type == "number" or k1type == "nil") and itblds or { itblds }
-            local _itblds = moses.filter(itblds, function(itemblock)
-                if type(itemblock) == "string" then
-                    debugname = #itemblock > 0 and itemblock or nil
-                    return true
+
+            itemBlock.stacksDefined = false
+            if type(itemBlockArg.stacks) == "number" then
+                if itemBlockArg.stacks >= 0 then
+                    itemBlock.stacks = itemBlockArg.stacks
+                    itemBlock.stacksDefined = true
                 end
-                if itemblock.amount then
-                    if type(itemblock.amount) == "number" and itemblock.amount > 0 then
-                        itemblock._amount = itemblock.amount
-                    elseif type(itemblock.amount) ~= "table"
-                        or type(itemblock.amount[1]) ~= "number"
-                        or type(itemblock.amount[2]) ~= "number"
-                    then
-                        itemblock._amount = 1
-                    else
-                        itemblock._amount = nil
+            elseif type(itemBlockArg.stacks) == "table" then
+                local stacksMin, stacksMax = itemBlockArg.stacks[1], itemBlockArg.stacks[2]
+                if type(stacksMin) == "number"
+                    and type(stacksMax) == "number"
+                    and stacksMin >= 0
+                    and stacksMax >= 0
+                then
+                    if stacksMin > stacksMax then
+                        stacksMin, stacksMax = stacksMax, stacksMin
                     end
+                    itemBlock.stacksRange = { stacksMin, stacksMax }
+                    itemBlock.stacksDefined = true
+                end
+            end
+
+            function itemBlock:calcAmount(context, round)
+                if round == nil then round = self.amountRound end
+                local amount = 1
+                if self.amountDefined then
+                    if self.amount then
+                        amount = self.amount
+                    elseif self.amountRange then
+                        amount = self.amount[1] + math.random() * (self.amount[2] - self.amount[1])
+                    end
+                elseif self.isPrefab then
+                    if self.stacksDefined then
+                        local maxStackSize = context.atInventory
+                            and itemBlock.itemPrefab:GetMaxStackSize(context.inventory)
+                            or itemBlock.itemPrefab.MaxStackSize
+                        if self.stacks then
+                            amount = self.stacks * maxStackSize
+                        elseif self.stacksRange then
+                            amount = (self.amount[1] + math.random() * (self.amount[2] - self.amount[1])) * maxStackSize
+                        end
+                    elseif self.fillInventory then
+                        if context.atInventory then
+                            amount = context.inventory:HowManyCanBePut(self.itemPrefab)
+                        end
+                    end
+                end
+                if amount == 0 then
+                    logWithMark("量的计算结果为零！", 'w')
+                end
+                return round and math.round(amount, 0) or amount
+            end
+
+            table.insert(itemBuilds, itemBlock)
+        end
+
+        if itemBlockArg.ref then
+            if not itemBlockArg.ref._ISITEMBUILDER then
+                logWithMark("只许引用ItemBuilder！", 'e')
+                return
+            end
+            itemBlock.isRef = true
+            itemBlock.ref = itemBlockArg.ref
+            initItemBlockToBuilds(); return
+        elseif itemBlockArg.pool then
+            local num = #itemBlockArg.pool
+            if num == 0 then
+                logWithMark("物品池为空！", 'e')
+                return
+            end
+            local weights = {}
+            local poolArgs = {}
+            for i = 1, num, 1 do
+                local tuple = itemBlockArg.pool[i]
+                if type(tuple[1]) == "number"
+                    and type(tuple[2]) == "table"
+                    and tuple[1] > 0
+                then
+                    weights[i] = tuple[1]
+                    poolArgs[i] = tuple[2]
                 else
-                    itemblock.amount, itemblock._amount = 1, 1
+                    logWithMark("物品池中存在无效项！", 'e')
+                    return
                 end
-                if itemblock.ref then
-                    if itemblock.ref._invalid then
-                        log(("itemblock is referenced to an invalid itembuilder!"), 'e')
-                        return false
-                    end
-                    function itemblock:_getrepetitions()
-                        local amount = self._amount or
-                            self.amount[1] + math.random() * (self.amount[2] - self.amount[1])
-                        return math.floor(amount)
-                    end
-                    return true
-                elseif itemblock.pool then
-                    local num = #itemblock.pool
-                    if num > 0 then
-                        itemblock._pool_weights = {}
-                        itemblock._pool_objects = {}
-                        for i = 1, num, 1 do
-                            local tuple = itemblock.pool[i]
-                            if type(tuple[1]) == "number" and tuple[1] > 0 and type(tuple[2]) == "table" then
-                                itemblock._pool_weights[i] = tuple[1]
-                                itemblock._pool_objects[i] = tuple[2]
-                            else
-                                log(("itemblock's pool exists invalid datas!"), 'e')
-                                return false
-                            end
-                        end
-                        for i, object in ipairs(itemblock._pool_objects) do
-                            local k1type = type(next(object))
-                            itemblock._pool_objects[i] = construct((k1type == "number" or k1type == "nil") and object or { object }, debugname)
-                        end
-                        function itemblock:_getrepetitions()
-                            local amount = self._amount or
-                                self.amount[1] + math.random() * (self.amount[2] - self.amount[1])
-                            return math.floor(amount)
-                        end
-                        return true
-                    end
-                    log(("itemblock's pool is empty!"), 'e')
-                    return false
-                elseif itemblock.identifier and ItemPrefab.Prefabs.ContainsKey(itemblock.identifier) then
-                    itemblock.identifier = Identifier(itemblock.identifier)
-                    itemblock._prefab = ItemPrefab.Prefabs[itemblock.identifier]
-                    if itemblock.stacks then
-                        if type(itemblock.stacks) == "number" and itemblock.stacks > 0 then
-                            itemblock._stacks = itemblock.stacks
-                        elseif type(itemblock.stacks) ~= "table"
-                            or type(itemblock.stacks[1]) ~= "number"
-                            or type(itemblock.stacks[2]) ~= "number"
-                        then
-                            itemblock.stacks = nil
-                        end
-                    end
-                    function itemblock:_getamount(context)
-                        if self.fillinventory and context.atinventory then
-                            return context.inventory.HowManyCanBePut(self._prefab)
-                        elseif self.stacks then
-                            local stacks = self._stacks or
-                                self.stacks[1] + math.random() * (self.stacks[2] - self.stacks[1])
-                            local amount = (context.atinventory
-                                and self._prefab.GetMaxStackSize(context.inventory)
-                                or self._prefab.MaxStackSize) * stacks
-                            if self.amountround then amount = math.round(amount, 0) end
-                            return amount
-                        elseif self.amount then
-                            local amount = self._amount or
-                                self.amount[1] + math.random() * (self.amount[2] - self.amount[1])
-                            if self.amountround then amount = math.round(amount, 0) end
-                            return amount
-                        else
-                            -- code never covering here since `self.amount` is defined
-                            log(("Cannot spawn item(%s) since the amount calculated by itub is not more then 0!")
-                                :format(itemblock.identifier.Value), 'w')
-                            return 0
-                        end
-                    end
+            end
+            itemBlock.isPool = true
+            itemBlock.poolWeights = weights
+            itemBlock.poolBuilders = {}
+            for i, args in ipairs(poolArgs) do
+                itemBlock.poolBuilders[i] = New "itembuilder" (args, debugName, mark)
+            end
+            initItemBlockToBuilds(); return
+        elseif itemBlockArg.identifier then
+            if not ItemPrefab.Prefabs.ContainsKey(itemBlockArg.identifier) then
+                logWithMark(("无法找到id为'%s'的物品预制件！"):format(itemBlockArg.identifier), 'e')
+                return
+            end
+            itemBlock.isPrefab = true
+            itemBlock.identifier = Identifier(itemBlockArg.identifier)
+            itemBlock.itemPrefab = ItemPrefab.Prefabs[itemBlock.identifier]
 
-                    if itemblock.properties then
-                        itemblock._spedit = spedit(itemblock.properties, log)
-                    end
+            if itemBlockArg.properties then
+                itemBlock.spedit = spedit(itemBlockArg.properties, logWithMark)
+            end
 
-                    if SERVER and itemblock.serverevents then
-                        if type(itemblock.serverevents) == "string" then
-                            itemblock.serverevents = { { itemblock.serverevents } }
-                        elseif type(itemblock.serverevents) == "table" then
-                            if #itemblock.serverevents > 0 then
-                                local k1, v1 = next(itemblock.serverevents)
-                                local _, v2 = next(itemblock.serverevents, k1)
-                                if type(v1) == "string" then
-                                    if v2 == nil or type(v2) == "string" then
-                                        local _t = {}
-                                        for _, eventstr in ipairs(itemblock.serverevents) do
-                                            table.insert(_t, { eventstr })
+            if SERVER then
+                if itemBlockArg.serverevents then
+                    if type(itemBlockArg.serverevents) == "string" then
+                        itemBlock.serverEvents = { { itemBlockArg.serverevents, 1 } }
+                    elseif type(itemBlockArg.serverevents) == "table" then
+                        local function logInvalidField(expected)
+                            logWithMark(("此处serverevents的表域是无效的，预期的类型是：\n%s，但却得到：\n%s")
+                                :format(expected, table.dump(itemBlockArg.serverevents, { noArrayKey = true })), 'e')
+                        end
+                        local k1, v1 = next(itemBlockArg.serverevents)
+                        if k1 then
+                            if type(v1) == "string" then
+                                local _, v2 = next(itemBlockArg.serverevents, k1)
+                                if v2 == nil or type(v2) == "string" then
+                                    local isInvalidField = false
+                                    itemBlock.serverEvents = {}
+                                    for _, event in ipairs(itemBlockArg.serverevents) do
+                                        if type(event) == "string" then
+                                            table.insert(itemBlock.serverEvents, { event, 1 })
+                                        else
+                                            isInvalidField = true
                                         end
-                                        itemblock.serverevents = _t
-                                    elseif type(v2) == "number" then
-                                        itemblock.serverevents = { { itemblock.serverevents[1], itemblock.serverevents[2] } }
+                                    end
+                                    if isInvalidField then
+                                        logInvalidField "string[]"
+                                    end
+                                elseif type(v2) == "number" then
+                                    if math.floor(v2) == v2 then
+                                        itemBlock.serverEvents = { { v1, v2 } }
                                     else
-                                        log("itemblock's ServerEvents's secondary data is invalid!", "e")
-                                        itemblock.serverevents = nil
+                                        logInvalidField "{ [1]: string, [2]: integer }"
+                                    end
+                                else
+                                    logInvalidField "unknown"
+                                end
+                            elseif type(v1) == "table" then
+                                local isInvalidField = false
+                                itemBlock.serverEvents = {}
+                                for _, event in ipairs(itemBlockArg.serverevents) do
+                                    if type(event) == "table"
+                                        and type(event[1]) == "string"
+                                        and (event[2] == nil or moses.isInteger(event[2]))
+                                    then
+                                        table.insert(itemBlock.serverEvents, { event[1], event[2] })
+                                    else
+                                        isInvalidField = true
                                     end
                                 end
+                                if isInvalidField then
+                                    logInvalidField "{ [1]: string, [2]: integer? }[]"
+                                end
                             else
-                                log("Table(itemblock's ServerEvents)'s length is not more then 0!", 'w')
-                                itemblock.serverevents = nil
+                                logInvalidField "unknown"
                             end
                         else
-                            log(("Field(itemblock's ServerEvents) has invalid type, expected 'string' or 'table', but got %s")
-                                :format(tostring(itemblock.serverevents)), 'e')
-                            itemblock.serverevents = nil
+                            logWithMark("serverevents为空！", 'w')
                         end
+                    else
+                        logWithMark("serverevents不是有效的类型！", 'e')
                     end
-                    if itemblock.inventory then
-                        itemblock.inventory = type(next(itemblock.inventory)) == "number"
-                            and itemblock.inventory or { itemblock.inventory }
-                        itemblock.inventory = construct(itemblock.inventory, debugname)
-                    end
-                    return true
-                else
-                    log(("Could not found any prefab with given identifier(%s)")
-                        :format(itemblock.identifier or type(nil)), 'e')
-                    return false
                 end
-            end)
-            return _itblds
+            end
+
+            if itemBlockArg.inventory then
+                itemBlock.inventory = New "itembuilder" (itemBlockArg.inventory, debugName, mark)
+            end
+
+            initItemBlockToBuilds(); return
+        else
+            logWithMark("必须定义字段ref、pool、identifier之中的一个！", 'e')
         end
+    end)
+end
 
-        ---@type itembuilder
-        local inst = setmetatable({ _itembuilds = construct(itembuilds) }, itembuilder)
+---@param worldPosition userdata
+---@param iterateOverPool? boolean
+function m:spawnat(worldPosition, iterateOverPool)
+    spawn(self.itemBuilds, {
+        atInventory = false,
+        atItemInventory = false,
+        worldPosition = worldPosition,
+        iterateOverPool = iterateOverPool
+    })
+end
 
-        if #inst._itembuilds == 0 then
-            inst._invalid = true
-            log("itembuilds is invalid!", 'e')
-        end
+---@param container userdata
+---@param iterateOverPool? boolean
+function m:spawnin(container, iterateOverPool)
+    if container.OwnInventory then
+        spawn(self.itemBuilds, {
+            atInventory = true,
+            atItemInventory = true,
+            inventory = container.OwnInventory,
+            iterateOverPool = iterateOverPool
+        })
+    else
+        self:spawnat(container.WorldPosition, iterateOverPool)
+    end
+end
 
-        return inst
-    end,
-})
+---@param character userdata
+---@param iterateOverPool? boolean
+function m:give(character, iterateOverPool)
+    if character.Inventory then
+        spawn(self.itemBuilds, {
+            atInventory = true,
+            atItemInventory = false,
+            inventory = character.Inventory,
+            iterateOverPool = iterateOverPool
+        })
+    else
+        self:spawnat(character.WorldPosition, iterateOverPool)
+    end
+end
 
-return itembuilder
+
+return m
