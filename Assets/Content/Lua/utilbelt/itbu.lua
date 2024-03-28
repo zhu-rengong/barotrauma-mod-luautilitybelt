@@ -247,19 +247,19 @@ function m:__init(itemBuildsArg, debugName, parentMark)
     itemBuildsArg = (initialIndexType == "number" or initialIndexType == "nil") and itemBuildsArg or { itemBuildsArg }
 
     moses.forEachi(itemBuildsArg, function(itemBlockArg, index)
-        local mark = parentMark and ("%s-%i"):format(parentMark, index) or tostring(index)
-
-        local function logWithMark(text, pattern)
-            if debugName then
-                log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, debugName, text), pattern)
-            else
-                log(("[层级索引:%s] %s"):format(mark, text), pattern)
-            end
-        end
-
         if type(itemBlockArg) == "string" then
             debugName = #itemBlockArg > 0 and itemBlockArg or nil
             return
+        end
+
+        local mark = parentMark and ("%s-%i"):format(parentMark, index) or tostring(index)
+        local internalDebugName = debugName
+        local function logWithMark(text, pattern)
+            if internalDebugName then
+                log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, internalDebugName, text), pattern)
+            else
+                log(("[层级索引:%s] %s"):format(mark, text), pattern)
+            end
         end
 
         ---@type itembuilderblock
@@ -388,7 +388,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
             itemBlock.poolWeights = weights
             itemBlock.poolBuilders = {}
             for i, args in ipairs(poolArgs) do
-                itemBlock.poolBuilders[i] = New "itembuilder" (args, debugName, mark)
+                itemBlock.poolBuilders[i] = New "itembuilder" (args, internalDebugName, mark)
             end
             initItemBlockToBuilds(); return
         elseif itemBlockArg.identifier then
@@ -468,7 +468,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
             end
 
             if itemBlockArg.inventory then
-                itemBlock.inventory = New "itembuilder" (itemBlockArg.inventory, debugName, mark)
+                itemBlock.inventory = New "itembuilder" (itemBlockArg.inventory, internalDebugName, mark)
             end
 
             initItemBlockToBuilds(); return
