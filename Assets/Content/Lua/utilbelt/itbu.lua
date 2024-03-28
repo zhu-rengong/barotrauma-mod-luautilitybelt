@@ -4,7 +4,7 @@ local spedit = require "utilbelt.spedit"
 local moses = require "moses"
 
 ---@class itembuildsarg : itembuilderblockarg, { [integer]: itembuilderblockarg }
----@class itembuilds : itembuilderblock[]
+---@class itembuilds : { [integer]: itembuilderblock }
 
 ---@class itembuilderblockarg
 ---@field ref itembuilder
@@ -26,8 +26,7 @@ local moses = require "moses"
 ---@field pool? { [1]: number, [2]: itembuildsarg }[]
 
 ---@class itembuilderblock
----@field mark string
----@field logWithMark function
+---@field logWithMark log
 ---@field amountDefined boolean
 ---@field amount? number
 ---@field amountRange? { [1]: number, [2]: number }
@@ -165,19 +164,20 @@ local function onSpawned(item, itemBlock, context)
     end
 end
 
----@param itemBuilds itembuilderblock[]
+---@param itemBuilds itembuilds
 ---@param context itembuilderspawnctx
 spawn = function(itemBuilds, context)
     for _, itemBlock in ipairs(itemBuilds) do
-        if itemBlock.ref then
+        if itemBlock.isRef then
             local num = itemBlock:calcAmount(context, true)
             while num > 0 do
                 num = num - 1
                 spawn(itemBlock.ref.itemBuilds, context)
             end
-        elseif itemBlock.pool then
+        elseif itemBlock.isPool then
             local num = itemBlock:calcAmount(context, true)
             while num > 0 do
+                num = num - 1
                 if not context.iterateOverPool then
                     ---@type itembuilder
                     local object = utils.SelectDynValueWeightedRandom(itemBlock.poolBuilders, itemBlock.poolWeights)
@@ -231,7 +231,7 @@ spawn = function(itemBuilds, context)
 end
 
 ---@class itembuilder
----@field itemBuilds itembuilderblock[]
+---@field itemBuilds itembuilds
 ---@overload fun(itemBuildsArg: itembuildsarg, debugName?: string, parentMark?: string):self
 local m = Class 'itembuilder'
 m._ISITEMBUILDER = true
@@ -254,6 +254,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
 
         local mark = parentMark and ("%s-%i"):format(parentMark, index) or tostring(index)
         local internalDebugName = debugName
+
         local function logWithMark(text, pattern)
             if internalDebugName then
                 log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, internalDebugName, text), pattern)
@@ -266,7 +267,6 @@ function m:__init(itemBuildsArg, debugName, parentMark)
         local itemBlock = { isRef = false, isPool = false, isPrefab = false }
 
         local function initItemBlockToBuilds()
-            itemBlock.mark = mark
             itemBlock.logWithMark = logWithMark
 
             itemBlock.amountRound = itemBlockArg.amountround
@@ -518,6 +518,5 @@ function m:give(character, iterateOverPool)
         self:spawnat(character.WorldPosition, iterateOverPool)
     end
 end
-
 
 return m
