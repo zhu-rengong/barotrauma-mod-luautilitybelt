@@ -82,7 +82,7 @@ function chat.addcommand(params)
             command.hidden = params.hidden == nil and false or params.hidden
             table.insert(commands, command)
             moses.sortBy(commands, "sort")
-            log(("添加了聊天框命令：%s。"):format(table.concat(command.names, ' | ')))
+            log(("添加了聊天框命令：%s"):format(table.concat(command.names, ' | ')))
         else
             log(("addcommand函数调用的第二个参数须为'function'！但却得到'%s'。"):format(type(params.callback)), 'e')
         end
@@ -97,7 +97,7 @@ function chat.removecommand(name)
         local command = commands[i]
         if moses.include(command.names, name) then
             table.remove(commands, i)
-            log(("移除了聊天框命令：%s。"):format(table.concat(command.names, ' | ')))
+            log(("移除了聊天框命令：%s"):format(table.concat(command.names, ' | ')))
         end
     end
 end
@@ -137,7 +137,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
         local command = commands[index]
         if SERVER then
             if command.permissions == nil or client.HasPermission(command.permissions) then
-                log(("玩家 %s 请求执行聊天框命令'%s'，参数为：%s。"):format(
+                log(("玩家 %s 请求执行聊天框命令'%s'，参数为：%s"):format(
                     utils.ClientLogName(client), name, table.concat(split, ', ')))
                 return command.callback(client, split)
             else
@@ -152,7 +152,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
                 }
             end
         else
-            log(("你请求执行聊天框命令'%s'，参数为：%s。"):format(
+            log(("你请求执行聊天框命令'%s'，参数为：%s"):format(
                 name, table.concat(split, ', ')))
             return command.callback(client, split)
         end
