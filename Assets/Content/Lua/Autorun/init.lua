@@ -3,8 +3,6 @@ Lub = LuaUtilityBelt
 Lub.Path = ...
 Lub.Test = false
 
-Lub.IsMultiplayerClient = CLIENT and Game.IsMultiplayer
-
 require "utilbelt.extensions.table"
 require "utilbelt.tools.diagnostics"
 
@@ -24,12 +22,3 @@ Lub.ItemBuilder = require "utilbelt.itbu"
 Lub.ItemBatch = require "utilbelt.itbat"
 
 require "utilbelt.csharpmodule.Shared.Utils"
-
-
-
-if Lub.IsMultiplayerClient then return end
-
-if Lub.Test then
-    dofile(Lub.Path .. "/Lua/utilbelt/test/itbu.lua")
-    dofile(Lub.Path .. "/Lua/utilbelt/test/itbat.lua")
-end
