@@ -16,7 +16,7 @@ return function(args)
         log(("表域的索引identifier须为'string'！但却得到：'%s'。"):format(type(args.identifier)), 'e')
         return false
     end
-    if type(args[1]) ~= "string" then
+    if type(args[1]) ~= "function" then
         log(("表域的索引[1]须为'function'！但却得到：'%s'。"):format(type(args[1])), 'e')
         return false
     end
