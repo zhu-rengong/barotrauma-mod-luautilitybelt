@@ -3,13 +3,13 @@ if not SERVER then return nil end
 ---@class dialog
 local dialog = {}
 
----@type fun(option:integer, client:Barotrauma.Networking.Client)[]
+---@type fun(option:integer, client:userdata)[]
 local callbacks = {}
 
 ---@param msg string
 ---@param options string[]
 ---@param id integer
----@param client Barotrauma.Networking.Client
+---@param client userdata
 ---@param sprite? string
 ---@param fadeToBlack? boolean
 local function SendEventMessage(msg, options, id, client, sprite, fadeToBlack)
@@ -38,9 +38,9 @@ local function SendEventMessage(msg, options, id, client, sprite, fadeToBlack)
 end
 
 Hook.Add("netMessageReceived", "utilbelt.dialog",
-    ---@param message Barotrauma.Networking.IReadMessage
-    ---@param header Barotrauma.Networking.ClientPacketHeader
-    ---@param client Barotrauma.Networking.Client
+    ---@param message userdata
+    ---@param header integer
+    ---@param client userdata
     function(message, header, client)
         if header == ClientPacketHeader.EVENTMANAGER_RESPONSE then
             local id = message.ReadUInt16()
@@ -56,8 +56,8 @@ Hook.Add("netMessageReceived", "utilbelt.dialog",
 
 ---@param msg string
 ---@param options string[]
----@param client Barotrauma.Networking.Client
----@param callback? fun(option:integer, client:Barotrauma.Networking.Client)
+---@param client userdata
+---@param callback? fun(option:integer, client:userdata)
 ---@param sprite? string
 ---@param fadeToBlack? boolean
 function dialog.prompt(msg, options, client, callback, sprite, fadeToBlack)

@@ -1,45 +1,51 @@
----@class thinkargs : { [1]:function }
+local log = require "utilbelt.logger" ("Think")
+
+---@class thinkargs : { [1]: (fun(): integer?) }
 ---@field identifier string
 ---@field interval? integer
 ---@field ingame? boolean
 
----@overload fun(args:thinkargs):boolean
-local think = {}
+---@param args thinkargs
+---@return boolean
+return function(args)
+    if type(args) ~= "table" then
+        log(("须传入'table'参数！但却得到：'%s'。"):format(type(args)), 'e')
+        return false
+    end
+    if type(args.identifier) ~= "string" then
+        log(("表域的索引identifier须为'string'！但却得到：'%s'。"):format(type(args.identifier)), 'e')
+        return false
+    end
+    if type(args[1]) ~= "string" then
+        log(("表域的索引[1]须为'function'！但却得到：'%s'。"):format(type(args[1])), 'e')
+        return false
+    end
 
-think.__index = think
-setmetatable(think, {
-    __call = function(_, args)
-        assert(type(args) == "table", ("Missing arguments on think(). Expected #1 to be table, but got %s"):format(type(args)))
-        assert(type(args.identifier) == "string", ("Missing arguments on think(). Expected a field(identifier) to be string, but got %s"):format(type(args.identifier)))
-        assert(type(args[1]) == "function", ("Missing arguments on think(). Expected args[1] to be function, but got %s"):format(type(args.func)))
-        local identifier = args.identifier
-        local func = args[1]
-        local interval = args.interval or 1
-        local ticks = 0
-        local ingame = args.ingame == nil and true or args.ingame
-        if ingame then
-            Hook.Add("think", identifier, function()
-                if Game.RoundStarted then
-                    ticks = ticks + 1
-                    if ticks == interval then
-                        ticks = 0
-                        interval = func() or interval
-                    end
-                else
-                    Hook.Remove("think", identifier)
-                end
-            end)
-        else
-            Hook.Add("think", identifier, function()
+    local identifier = args.identifier
+    local func = args[1]
+    local interval = args.interval or 1
+    local ticks = 0
+    local inGame = args.ingame == nil and true or args.ingame
+    if inGame then
+        Hook.Add("think", identifier, function()
+            if Game.RoundStarted then
                 ticks = ticks + 1
                 if ticks == interval then
                     ticks = 0
                     interval = func() or interval
                 end
-            end)
-        end
-        return true
+            else
+                Hook.Remove("think", identifier)
+            end
+        end)
+    else
+        Hook.Add("think", identifier, function()
+            ticks = ticks + 1
+            if ticks == interval then
+                ticks = 0
+                interval = func() or interval
+            end
+        end)
     end
-})
-
-return think
+    return true
+end

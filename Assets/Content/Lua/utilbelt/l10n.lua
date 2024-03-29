@@ -1,31 +1,31 @@
 local log = require "utilbelt.logger" ("L10N")
 
 LuaUserData.MakeFieldAccessible(Descriptors["Barotrauma.GameSettings"], "currentConfig")
-local locallanguage = GameSettings.currentConfig.Language.Value.Value
-log(("'%s' was detected as the local language"):format(locallanguage))
+local localLanguage = GameSettings.currentConfig.Language.Value.Value
+log(("已选用本地语言：'%s'。"):format(localLanguage))
 
 ---@class l10nstr
 ---@field value string
 ---@field altvalue string # return the last key if `self` is nil
 ---@field format fun(self:l10nstr, ...:any):string
 
----@class l10nmgr
----@overload fun(keys:string|string[]):l10nstr
-local l10nmgr = {}
-l10nmgr.__index = l10nmgr
+---@class l10n
+---@overload fun(keys: string|string[]):l10nstr
+local l10n = {}
+l10n.__index = l10n
 
 ---@type table[]
 local languages = {}
----@type { [string]:table }
+---@type { [string]: table }
 local caches = {}
 
 ---@param lang table
-l10nmgr.addlang = function(lang)
+l10n.addlang = function(lang)
     table.insert(languages, lang)
 end
 
 ---@param lang table
-l10nmgr.removelang = function(lang)
+l10n.removelang = function(lang)
     for i = #languages, 1, -1 do
         if languages[i] == lang then
             table.remove(languages, i)
@@ -33,11 +33,11 @@ l10nmgr.removelang = function(lang)
     end
 end
 
-l10nmgr.sortlangs = function()
+l10n.sortlangs = function()
     table.sort(languages, function(l1, l2)
-        if l1[1] == locallanguage and l2[1] ~= locallanguage then
+        if l1[1] == localLanguage and l2[1] ~= localLanguage then
             return true
-        elseif l1[1] ~= locallanguage and l2[1] == locallanguage then
+        elseif l1[1] ~= localLanguage and l2[1] == localLanguage then
             return false
         else
             return nil
@@ -46,7 +46,7 @@ l10nmgr.sortlangs = function()
 end
 
 ---@param dir string
-function l10nmgr.loadlangs(dir)
+function l10n.loadlangs(dir)
     if File.DirectoryExists(dir) then
         local files = File.DirSearch(dir)
         for _, file in pairs(files) do
@@ -54,36 +54,36 @@ function l10nmgr.loadlangs(dir)
             if lang == nil then
                 if file:endsWith(".lua") then
                     lang = dofile(file)
-                    if lang[1] ~= locallanguage and lang[1] ~= [[English]] then
+                    if lang[1] ~= localLanguage and lang[1] ~= [[English]] then
                         lang = nil
                     end
                 end
             end
             if lang ~= nil then
-                l10nmgr.addlang(lang)
-                log(("Loaded a lang in '%s'"):format(file))
+                l10n.addlang(lang)
+                log(("已加载路径为\"%s\"的语言文件。"):format(file))
                 caches[file] = lang
             end
         end
-        l10nmgr.sortlangs()
+        l10n.sortlangs()
     else
-        log(("Failed to load languages in '%s' since it is not existed!"):format(dir), 'e')
+        log(("目录\"%s\"不存在，无法查找到任何语言文件！"):format(dir), 'e')
     end
 end
 
 ---@param dir string
-function l10nmgr.unloadlangs(dir)
+function l10n.unloadlangs(dir)
     local files = File.DirSearch(dir)
     for _, file in pairs(files) do
         local lang = caches[file]
         if lang ~= nil then
-            l10nmgr.removelang(lang)
-            log(("Unloaded a lang in '%s'"):format(file))
+            l10n.removelang(lang)
+            log(("已卸载路径为\"%s\"的语言文件。"):format(file))
         end
     end
 end
 
-setmetatable(l10nmgr, {
+setmetatable(l10n, {
     __call = function(_, ...)
         local keys = ...
         if type(keys) == "string" then keys = { keys } end
@@ -129,6 +129,6 @@ setmetatable(l10nmgr, {
     end
 })
 
-l10nmgr.loadlangs(LuaUtilityBelt.Path .. "/Lua/utilbelt/texts")
+l10n.loadlangs(LuaUtilityBelt.Path .. "/Lua/utilbelt/texts")
 
-return l10nmgr
+return l10n

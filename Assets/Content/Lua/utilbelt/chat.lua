@@ -7,15 +7,15 @@ local utils = require "utilbelt.csharpmodule.Shared.Utils"
 local chat = {}
 
 ---@class chatmsgbaseparams
----@field msgtypes? Barotrauma.Networking.ChatMessageType|Barotrauma.Networking.ChatMessageType[]
----@field color? Microsoft.Xna.Framework.Color
+---@field msgtypes? integer|integer[]
+---@field color? userdata
 ---@field style? string
 
----@class chatfsendparams : chatmsgbaseparams, { [1]:string, [2]:Barotrauma.Networking.Client }
+---@class chatfsendparams : chatmsgbaseparams, { [1]:string, [2]:userdata }
 ---@field boardcast? boolean # Only for client to determine whether the chat message should be send to others, default is true
 
 ---@class chatfboardcastparams : chatmsgbaseparams, { [1]:string }
----@field filter? fun(client:Barotrauma.Networking.Client):boolean
+---@field filter? fun(client:userdata):boolean
 
 ---@param params chatfsendparams
 function chat.send(params)
@@ -54,9 +54,9 @@ function chat.boardcast(params)
 end
 
 ---@class chatcommandoptions
----@field callback fun(client?:Barotrauma.Networking.Client, args:string[])
+---@field callback fun(client?:userdata, args:string[])
 ---@field help? string
----@field permissions? Barotrauma.Networking.ClientPermissions
+---@field permissions? integer
 ---@field sort? integer
 ---@field hidden? boolean
 
@@ -82,12 +82,12 @@ function chat.addcommand(params)
             command.hidden = params.hidden == nil and false or params.hidden
             table.insert(commands, command)
             moses.sortBy(commands, "sort")
-            log(("Added a chat-command: %s"):format(table.concat(command.names, ' | ')))
+            log(("添加了聊天框命令：%s。"):format(table.concat(command.names, ' | ')))
         else
-            log(("chat.addcommand() expected params[2] to be 'function' as command callback, but got '%s'"):format(type(params.callback)), 'e')
+            log(("addcommand函数调用的第二个参数须为'function'！但却得到'%s'。"):format(type(params.callback)), 'e')
         end
     else
-        log(("chat.addcommand() expected params[1] to be 'string' or 'string[]' as command name, but got '%s'"):format(type(params[1])), 'e')
+        log(("addcommand函数调用的第一个参数须为'string|string[]'！但却得到'%s'。"):format(type(params[1])), 'e')
     end
 end
 
@@ -97,7 +97,7 @@ function chat.removecommand(name)
         local command = commands[i]
         if moses.include(command.names, name) then
             table.remove(commands, i)
-            log(("Removed a chat-command: %s"):format(table.concat(command.names, ' | ')))
+            log(("移除了聊天框命令：%s。"):format(table.concat(command.names, ' | ')))
         end
     end
 end
@@ -125,7 +125,7 @@ end
 
 Hook.Add("chatMessage", "utilbelt.chat",
     ---@param msg string
-    ---@param client Barotrauma.Networking.Client
+    ---@param client userdata
     function(msg, client)
         local split = ToolBox.SplitCommand(msg)
         if split[1] == nil then return end
@@ -137,7 +137,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
         local command = commands[index]
         if SERVER then
             if command.permissions == nil or client.HasPermission(command.permissions) then
-                log(("client %s requests to execute the command '%s' with the following parameters: %s"):format(
+                log(("玩家 %s 请求执行聊天框命令'%s'，参数为：%s。"):format(
                     utils.ClientLogName(client), name, table.concat(split, ', ')))
                 return command.callback(client, split)
             else
@@ -152,7 +152,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
                 }
             end
         else
-            log(("You requests to execute the command '%s' with the following parameters: %s"):format(
+            log(("你请求执行聊天框命令'%s'，参数为：%s。"):format(
                 name, table.concat(split, ', ')))
             return command.callback(client, split)
         end

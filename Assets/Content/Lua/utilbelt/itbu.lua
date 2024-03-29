@@ -84,7 +84,7 @@ local function onSpawned(item, itemBlock, context)
                 end
             end
             if not alreadyContained then
-                logWithMark(("无法将物品'%s'存放至%s！"):format(tostring(item), tostring(context.inventory.Owner)), 'w')
+                logWithMark(("无法将物品'%s'存放至'%s'！"):format(tostring(item), tostring(context.inventory.Owner)), 'w')
             end
         end
 
@@ -96,7 +96,7 @@ local function onSpawned(item, itemBlock, context)
             if itemBlock.slotIndex then
                 if not context.inventory:CanBePutInSlot(item, itemBlock.slotIndex, false)
                     or not context.inventory:TryPutItem(item, itemBlock.slotIndex, true, true, context.character, true, false) then
-                    logWithMark(("无法将物品'%s'存放至%s的第%i槽位！"):format(tostring(item), tostring(context.inventory.Owner), itemBlock.slotIndex), 'w')
+                    logWithMark(("无法将物品'%s'存放至'%s'的第%i槽位！"):format(tostring(item), tostring(context.inventory.Owner), itemBlock.slotIndex), 'w')
                 end
             end
         end
