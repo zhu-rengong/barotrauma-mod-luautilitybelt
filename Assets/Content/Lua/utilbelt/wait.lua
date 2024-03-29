@@ -11,7 +11,7 @@ return function(args)
         log(("须传入'table'参数！但却得到：'%s'。"):format(type(args)), 'e')
         return false
     end
-    if type(args[1]) ~= "string" then
+    if type(args[1]) ~= "function" then
         log(("表域的索引[1]须为'function'！但却得到：'%s'。"):format(type(args[1])), 'e')
         return false
     end
