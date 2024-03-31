@@ -6,7 +6,14 @@ using System.Text;
 using Barotrauma;
 using Microsoft.Xna.Framework;
 
+
+#if CLIENT
 [assembly: IgnoresAccessChecksTo("Barotrauma")]
+#endif
+#if SERVER
+[assembly: IgnoresAccessChecksTo("DedicatedServer")]
+#endif
+[assembly: IgnoresAccessChecksTo("BarotraumaCore")]
 
 namespace LuaUtilityBelt
 {
