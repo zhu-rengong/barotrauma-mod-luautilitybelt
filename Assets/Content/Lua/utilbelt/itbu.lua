@@ -328,7 +328,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                     if self.amount then
                         amount = self.amount
                     elseif self.amountRange then
-                        amount = self.amount[1] + math.random() * (self.amount[2] - self.amount[1])
+                        amount = self.amountRange[1] + math.random() * (self.amountRange[2] - self.amountRange[1])
                     end
                 elseif self.isPrefab then
                     if self.stacksDefined then
