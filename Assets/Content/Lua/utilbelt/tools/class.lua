@@ -23,11 +23,7 @@ local function clone(obj)
         local _o = {}
         copyCaches[o] = _o
         for k, v in pairs(o) do
-            if type(v) == 'table' then
-                _o[k] = deepCopy(v)
-            else
-                _o[k] = v
-            end
+            _o[k] = deepCopy(v)
         end
         return _o
     end

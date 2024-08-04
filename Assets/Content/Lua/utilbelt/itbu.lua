@@ -197,7 +197,7 @@ spawn = function(itemBuilds, context)
                     condition = table.pack(math.modf(amount))[2] * itemBlock.itemPrefab.Health
                 end
                 if context.worldPosition then
-                    local notSpawnYet = true
+                    local notSpawned = true
                     if itemBlock.install then
                         for _, sub in pairs(Submarine.MainSubs) do
                             local borders, worldPosition = sub.Borders, sub.WorldPosition
@@ -208,12 +208,12 @@ spawn = function(itemBuilds, context)
                                     sub, condition, itemBlock.quality, function(item)
                                         onSpawned(item, itemBlock, context)
                                     end)
+                                notSpawned = false
                                 break
-                                notSpawnYet = false
                             end
                         end
                     end
-                    if notSpawnYet then
+                    if notSpawned then
                         Entity.Spawner.AddItemToSpawnQueue(itemBlock.itemPrefab, context.worldPosition, condition,
                             itemBlock.quality, function(item)
                                 onSpawned(item, itemBlock, context)
