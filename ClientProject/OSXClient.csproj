@@ -50,10 +50,12 @@
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DefineConstants>TRACE;OSX;CLIENT</DefineConstants>
+    <OutputPath>bin\$(Configuration)OSX\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE;OSX;CLIENT</DefineConstants>
+    <OutputPath>bin\$(Configuration)OSX\</OutputPath>
   </PropertyGroup>
 
   <Target Name="CopyFiles" AfterTargets="Build">

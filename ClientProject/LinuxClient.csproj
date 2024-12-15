@@ -50,10 +50,12 @@
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
       <DefineConstants>TRACE;CLIENT;LINUX</DefineConstants>
+      <OutputPath>bin\$(Configuration)Linux\</OutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <DefineConstants>TRACE;CLIENT;LINUX</DefineConstants>
+      <OutputPath>bin\$(Configuration)Linux\</OutputPath>
     </PropertyGroup>
 
     <Target Name="CopyFiles" AfterTargets="Build">

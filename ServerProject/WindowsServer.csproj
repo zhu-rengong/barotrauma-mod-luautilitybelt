@@ -13,14 +13,6 @@
   <Import Project="..\SharedProject\SharedProject.projitems" Label="Shared" />
   <Import Project="../Build.props"/>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <DefineConstants>TRACETRACE;SERVER;WINDOWS</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <DefineConstants>TRACETRACE;SERVER;WINDOWS</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>..\Refs\0Harmony.dll</HintPath>
@@ -58,6 +50,16 @@
     <RootNamespace>$(SolutionName.Replace(" ", "_"))</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DefineConstants>TRACETRACE;SERVER;WINDOWS</DefineConstants>
+    <OutputPath>bin\$(Configuration)Windows\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DefineConstants>TRACETRACE;SERVER;WINDOWS</DefineConstants>
+    <OutputPath>bin\$(Configuration)Windows\</OutputPath>
   </PropertyGroup>
 
   <Target Name="CopyFiles" AfterTargets="Build">
