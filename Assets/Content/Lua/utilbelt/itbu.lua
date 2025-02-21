@@ -13,6 +13,7 @@ local moses = require "moses"
 ---@field quality? integer
 ---@field slotindex? integer
 ---@field equip? boolean
+---@field equipslots? Barotrauma.InvSlotType|Barotrauma.InvSlotType[]
 ---@field install? boolean
 ---@field inheritchannel? boolean
 ---@field amount? number|{ [1]: number, [2]: number}
@@ -21,7 +22,7 @@ local moses = require "moses"
 ---@field fillinventory? boolean
 ---@field properties? sptbl
 ---@field serverevents? string|string[]|{ [1]: string, [2]: integer? }|{ [1]: string, [2]: integer? }[]
----@field onspawned? fun(item:userdata)
+---@field onspawned? fun(item:Barotrauma.Item)
 ---@field inventory? itembuildsarg
 ---@field pool? { [1]: number, [2]: itembuildsarg }[]
 
@@ -38,34 +39,35 @@ local moses = require "moses"
 ---@field isRef boolean
 ---@field ref itembuilder
 ---@field isPrefab boolean
----@field identifier userdata
----@field itemPrefab userdata
+---@field identifier Barotrauma.Identifier
+---@field itemPrefab Barotrauma.ItemPrefab
 ---@field tags? string
 ---@field quality? integer
 ---@field slotIndex? integer
 ---@field equip? boolean
+---@field equipSlots? Barotrauma.InvSlotType[]
 ---@field install? boolean
 ---@field inheritChannel? boolean
 ---@field fillInventory? boolean
 ---@field spedit? spedit
 ---@field serverEvents? { [1]: string, [2]: integer }[]
----@field onSpawned? fun(item:userdata)
+---@field onSpawned? fun(item:Barotrauma.Item)
 ---@field inventory? itembuilder
 ---@field isPool boolean
 ---@field poolWeights? number[]
 ---@field poolBuilders? itembuilder[]
 
 ---@class itembuilderspawnctx
----@field inventory? userdata
+---@field inventory? Barotrauma.Inventory
 ---@field atInventory boolean
 ---@field atItemInventory boolean
----@field worldPosition? userdata
----@field character? userdata
+---@field worldPosition? Microsoft.Xna.Framework.Vector2
+---@field character? Barotrauma.Character
 ---@field iterateOverPool? boolean
 
 local spawn
 
----@param item userdata
+---@param item Barotrauma.Item
 ---@param itemBlock itembuilderblock
 ---@param context itembuilderspawnctx
 local function onSpawned(item, itemBlock, context)
@@ -84,7 +86,7 @@ local function onSpawned(item, itemBlock, context)
                 end
             end
             if not alreadyContained then
-                logWithMark(("无法将物品'%s'存放至'%s'！"):format(tostring(item), tostring(context.inventory.Owner)), 'w')
+                logWithMark(("Unable to put item '%s' in '%s'!"):format(tostring(item), tostring(context.inventory.Owner)), 'w')
             end
         end
 
@@ -96,7 +98,7 @@ local function onSpawned(item, itemBlock, context)
             if itemBlock.slotIndex then
                 if not context.inventory:CanBePutInSlot(item, itemBlock.slotIndex, false)
                     or not context.inventory:TryPutItem(item, itemBlock.slotIndex, true, true, context.character, true, false) then
-                    logWithMark(("无法将物品'%s'存放至'%s'的第%i槽位！"):format(tostring(item), tostring(context.inventory.Owner), itemBlock.slotIndex), 'w')
+                    logWithMark(("Unable to put item '%s' in slot %i of '%s'!"):format(tostring(item), itemBlock.slotIndex, tostring(context.inventory.Owner)), 'w')
                 end
             end
         end
@@ -120,7 +122,7 @@ local function onSpawned(item, itemBlock, context)
         end
 
         if itemBlock.equip then
-            utils.Equip(context.character, item)
+            utils.Equip(context.character, item, itemBlock.equipSlots)
         end
     end
 
@@ -139,7 +141,7 @@ local function onSpawned(item, itemBlock, context)
                 iterateOverPool = context.iterateOverPool
             })
         else
-            logWithMark(("无法生成子物品！原因是没有找到物品'%s'的容器。"):format(tostring(item)), 'e')
+            logWithMark(("Failed to spawn! Not found any container for contained item '%s'."):format(tostring(item)), 'e')
         end
     end
 
@@ -257,9 +259,9 @@ function m:__init(itemBuildsArg, debugName, parentMark)
 
         local function logWithMark(text, pattern)
             if internalDebugName then
-                log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, internalDebugName, text), pattern)
+                log(("[Mark:%s; Name:%s] %s"):format(mark, internalDebugName, text), pattern)
             else
-                log(("[层级索引:%s] %s"):format(mark, text), pattern)
+                log(("[Mark:%s] %s"):format(mark, text), pattern)
             end
         end
 
@@ -274,6 +276,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
             itemBlock.quality = itemBlockArg.quality
             itemBlock.slotIndex = itemBlockArg.slotindex
             itemBlock.equip = itemBlockArg.equip
+            itemBlock.equipSlots = itemBlockArg.equipslots and moses.castArray(itemBlockArg.equipslots) or nil
             itemBlock.install = itemBlockArg.install
             itemBlock.inheritChannel = itemBlockArg.inheritchannel
             itemBlock.fillInventory = itemBlockArg.fillinventory
@@ -338,7 +341,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                         if self.stacks then
                             amount = self.stacks * maxStackSize
                         elseif self.stacksRange then
-                            amount = (self.amount[1] + math.random() * (self.amount[2] - self.amount[1])) * maxStackSize
+                            amount = (self.stacksRange[1] + math.random() * (self.stacksRange[2] - self.stacksRange[1])) * maxStackSize
                         end
                     elseif self.fillInventory then
                         if context.atInventory then
@@ -347,7 +350,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                     end
                 end
                 if amount == 0 then
-                    logWithMark("量的计算结果为零！", 'w')
+                    logWithMark("Amount to be calculated as 0!", 'w')
                 end
                 return round and math.round(amount, 0) or amount
             end
@@ -357,7 +360,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
 
         if itemBlockArg.ref then
             if not itemBlockArg.ref._ISITEMBUILDER then
-                logWithMark("只许引用ItemBuilder！", 'e')
+                logWithMark("Only ItemBuilder is allowed to be referenced!", 'e')
                 return
             end
             itemBlock.isRef = true
@@ -366,7 +369,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
         elseif itemBlockArg.pool then
             local num = #itemBlockArg.pool
             if num == 0 then
-                logWithMark("物品池为空！", 'e')
+                logWithMark("Pool is empty!", 'e')
                 return
             end
             local weights = {}
@@ -380,7 +383,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                     weights[i] = tuple[1]
                     poolArgs[i] = tuple[2]
                 else
-                    logWithMark("物品池中存在无效项！", 'e')
+                    logWithMark("There is an invalid item in the pool!", 'e')
                     return
                 end
             end
@@ -393,7 +396,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
             initItemBlockToBuilds(); return
         elseif itemBlockArg.identifier then
             if not ItemPrefab.Prefabs.ContainsKey(itemBlockArg.identifier) then
-                logWithMark(("无法找到id为'%s'的物品预制件！"):format(itemBlockArg.identifier), 'e')
+                logWithMark(("Not found any item prefab with id '%s'!"):format(itemBlockArg.identifier), 'e')
                 return
             end
             itemBlock.isPrefab = true
@@ -410,7 +413,7 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                         itemBlock.serverEvents = { { itemBlockArg.serverevents, 1 } }
                     elseif type(itemBlockArg.serverevents) == "table" then
                         local function logInvalidField(expected)
-                            logWithMark(("此处serverevents的表域是无效的，预期的类型是：\n%s，但却得到：\n%s")
+                            logWithMark(("The table field of serverevents here is invalid. The expected type is:\n%s, but got:\n%s.")
                                 :format(expected, table.dump(itemBlockArg.serverevents, { noArrayKey = true })), 'e')
                         end
                         local k1, v1 = next(itemBlockArg.serverevents)
@@ -459,10 +462,10 @@ function m:__init(itemBuildsArg, debugName, parentMark)
                                 logInvalidField "unknown"
                             end
                         else
-                            logWithMark("serverevents为空！", 'w')
+                            logWithMark("serverevents is empty!", 'w')
                         end
                     else
-                        logWithMark("serverevents不是有效的类型！", 'e')
+                        logWithMark(("serverevents is not a valid type! expected string|table, but got %s!"):format(type(itemBlockArg.serverevents)), 'e')
                     end
                 end
             end
@@ -473,12 +476,12 @@ function m:__init(itemBuildsArg, debugName, parentMark)
 
             initItemBlockToBuilds(); return
         else
-            logWithMark("必须定义字段ref、pool、identifier之中的一个！", 'e')
+            logWithMark("One of the fields: ref, pool, or identifier must be defined!", 'e')
         end
     end)
 end
 
----@param worldPosition userdata
+---@param worldPosition Microsoft.Xna.Framework.Vector2
 ---@param iterateOverPool? boolean
 function m:spawnat(worldPosition, iterateOverPool)
     spawn(self.itemBuilds, {
@@ -489,7 +492,7 @@ function m:spawnat(worldPosition, iterateOverPool)
     })
 end
 
----@param container userdata
+---@param container Barotrauma.Item
 ---@param iterateOverPool? boolean
 function m:spawnin(container, iterateOverPool)
     if container.OwnInventory then
@@ -504,7 +507,7 @@ function m:spawnin(container, iterateOverPool)
     end
 end
 
----@param character userdata
+---@param character Barotrauma.Character
 ---@param iterateOverPool? boolean
 function m:give(character, iterateOverPool)
     if character.Inventory then

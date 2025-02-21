@@ -82,12 +82,12 @@ function chat.addcommand(params)
             command.hidden = params.hidden == nil and false or params.hidden
             table.insert(commands, command)
             moses.sortBy(commands, "sort")
-            log(("添加了聊天框命令：%s"):format(table.concat(command.names, ' | ')))
+            log(("Added a chat command: %s"):format(table.concat(command.names, ' | ')))
         else
-            log(("addcommand函数调用的第二个参数须为'function'！但却得到'%s'。"):format(type(params.callback)), 'e')
+            log(("The 2nd argument of the addcommand function call must be a 'function', but got '%s'!"):format(type(params.callback)), 'e')
         end
     else
-        log(("addcommand函数调用的第一个参数须为'string|string[]'！但却得到'%s'。"):format(type(params[1])), 'e')
+        log(("The 2nd argument of the addcommand function call must be a 'string|string[]', but got '%s'!"):format(type(params[1])), 'e')
     end
 end
 
@@ -97,7 +97,7 @@ function chat.removecommand(name)
         local command = commands[i]
         if moses.include(command.names, name) then
             table.remove(commands, i)
-            log(("移除了聊天框命令：%s"):format(table.concat(command.names, ' | ')))
+            log(("Removed the chat command: %s"):format(table.concat(command.names, ' | ')))
         end
     end
 end
@@ -137,7 +137,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
         local command = commands[index]
         if SERVER then
             if command.permissions == nil or client.HasPermission(command.permissions) then
-                log(("玩家 %s 请求执行聊天框命令'%s'，参数为：%s"):format(
+                log(("Client %s requests to execute the chat command '%s', arguments: %s"):format(
                     utils.ClientLogName(client), name, table.concat(split, ', ')))
                 return command.callback(client, split)
             else
@@ -152,7 +152,7 @@ Hook.Add("chatMessage", "utilbelt.chat",
                 }
             end
         else
-            log(("你请求执行聊天框命令'%s'，参数为：%s"):format(
+            log(("You request to execute the chat command '%s', arguments: %s"):format(
                 name, table.concat(split, ', ')))
             return command.callback(client, split)
         end

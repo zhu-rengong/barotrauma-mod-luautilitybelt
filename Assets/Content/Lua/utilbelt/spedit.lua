@@ -22,7 +22,7 @@ function m:__init(sptbl, log)
     self._sptbl = {}
     for k, v in pairs(sptbl) do
         local function logInvalidField(expected)
-            log(("此处的表域是无效的，预期的类型是：\n%s，但却得到：\n%s")
+            log(("The table field of sptbl here is invalid. The expected type is:\n%s, but got:\n%s.")
                 :format(expected, table.dump({ [k] = v }, { noArrayKey = true })), 'e')
         end
         if type(k) == "table" then
@@ -94,25 +94,25 @@ function m:apply(item, log)
                     end
                 else
                     if target == item then
-                        log(("设置失败！原因是物品'%s'的序列化属性'%s'无法设为'%s'。")
-                            :format(item.Prefab.Identifier.Value, propertyName.Value, tostring(newValue)), 'e')
+                        log(("Failed to set! The serializable property '%s' of item '%s' cannot be set to '%s'!")
+                            :format(propertyName.Value, item.Prefab.Identifier.Value, tostring(newValue)), 'e')
                     else
-                        log(("设置失败！原因是物品'%s'组件'%s[%i]'的序列化属性'%s'无法设为'%s'。")
-                            :format(item.Prefab.Identifier.Value, indexer[1], indexer[3], propertyName.Value, tostring(newValue)), 'e')
+                        log(("Failed to set! The serializable property '%s' of component '%s[%i]' of item '%s' cannot be set to '%s'!")
+                            :format(propertyName.Value, indexer[1], indexer[3], item.Prefab.Identifier.Value, tostring(newValue)), 'e')
                     end
                 end
             else
                 if target == item then
-                    log(("没有找到物品'%s'的序列化属性'%s'！")
-                        :format(item.Prefab.Identifier.Value, propertyName.Value), 'e')
+                    log(("Not found serializable property '%s' of item '%s'!")
+                        :format(propertyName.Value, item.Prefab.Identifier.Value), 'e')
                 else
-                    log(("没有找到物品'%s'组件'%s[%i]'的序列化属性'%s'！")
-                        :format(item.Prefab.Identifier.Value, indexer[1], indexer[3], propertyName.Value), 'e')
+                    log(("Not found serializable property '%s' of component '%s[%i]' of item '%s'!")
+                        :format(propertyName.Value, indexer[1], indexer[3], item.Prefab.Identifier.Value), 'e')
                 end
             end
         else
-            log(("没有找到物品'%s'的组件'%s[%i]'！")
-                :format(item.Prefab.Identifier.Value, indexer[1], indexer[3]), 'e')
+            log(("Not found component '%s[%i]' of item '%s'!")
+                :format(indexer[1], indexer[3], item.Prefab.Identifier.Value), 'e')
         end
     end
 end

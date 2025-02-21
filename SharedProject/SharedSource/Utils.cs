@@ -40,15 +40,20 @@ namespace LuaUtilityBelt
         {
             return ToolBox.SelectWeightedRandom(objects, weights, Rand.GetRNG(Rand.RandSync.Unsynced));
         }
-            
-        public static void Equip(Character character, Item item)
+
+        public static void Equip(Character character, Item item, List<InvSlotType>? allowedSlots = null)
         {
             var inventory = character.Inventory;
             if (inventory == null) { return; }
-            List<InvSlotType> allowedSlots =
-                item.GetComponents<Pickable>().Count() > 1 ?
-                new List<InvSlotType>(item.GetComponent<Wearable>()?.AllowedSlots ?? item.GetComponent<Pickable>().AllowedSlots) :
-                new List<InvSlotType>(item.AllowedSlots);
+            allowedSlots = allowedSlots ?? (
+                item.GetComponents<Pickable>().Count() > 1
+                    ? new List<InvSlotType>(
+                        item.GetComponent<Holdable>()?.AllowedSlots
+                        ?? item.GetComponent<Wearable>()?.AllowedSlots
+                        ?? item.GetComponent<Pickable>().AllowedSlots
+                    )
+                    : new List<InvSlotType>(item.AllowedSlots)
+            );
             allowedSlots.Remove(InvSlotType.Any);
             inventory.TryPutItem(item, null, allowedSlots);
         }

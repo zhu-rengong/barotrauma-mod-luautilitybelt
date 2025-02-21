@@ -75,9 +75,9 @@ function m:__init(itemBatchUnitArg, debugName, parentMark)
         local internalDebugName = debugName
         local function logWithMark(text, pattern)
             if internalDebugName then
-                log(("[层级索引:%s] [调试名称:%s] %s"):format(mark, internalDebugName, text), pattern)
+                log(("[Mark:%s; Name:%s] %s"):format(mark, internalDebugName, text), pattern)
             else
-                log(("[层级索引:%s] %s"):format(mark, text), pattern)
+                log(("[Mark:%s] %s"):format(mark, text), pattern)
             end
         end
 
@@ -91,7 +91,7 @@ function m:__init(itemBatchUnitArg, debugName, parentMark)
 
         if itemBlockArg.ref then
             if not itemBlockArg.ref._ISITEMBATCH then
-                logWithMark("只许引用ItemBatch！", 'e')
+                logWithMark("Only ItemBatch is allowed to be referenced!", 'e')
                 return
             end
             itemBlock.isRef = true
@@ -200,7 +200,7 @@ local function run(itemBatchUnit, items, context)
                         character = context.character
                     })
                 else
-                    logWithMark(("无法批处理子物品！原因是没有找到物品'%s'的容器。"):format(tostring(item)), 'e')
+                    logWithMark(("Failed to batch! Not found any container for contained item '%s'."):format(tostring(item)), 'e')
                 end
             end
         end)

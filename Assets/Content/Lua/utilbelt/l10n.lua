@@ -2,7 +2,7 @@ local log = require "utilbelt.logger" ("L10N")
 
 LuaUserData.MakeFieldAccessible(Descriptors["Barotrauma.GameSettings"], "currentConfig")
 local localLanguage = GameSettings.currentConfig.Language.Value.Value
-log(("已选用本地语言：'%s'。"):format(localLanguage))
+log(("Local language: '%s'"):format(localLanguage))
 
 ---@class l10nstr
 ---@field value string
@@ -61,13 +61,13 @@ function l10n.loadlangs(dir)
             end
             if lang ~= nil then
                 l10n.addlang(lang)
-                log(("已加载路径为\"%s\"的语言文件。"):format(file))
+                log(("The language file located at \"%s\" has been loaded."):format(file))
                 caches[file] = lang
             end
         end
         l10n.sortlangs()
     else
-        log(("目录\"%s\"不存在，无法查找到任何语言文件！"):format(dir), 'e')
+        log(("Failed to locate language files, the given directory \"%s\" does not exist!"):format(dir), 'e')
     end
 end
 
@@ -78,7 +78,7 @@ function l10n.unloadlangs(dir)
         local lang = caches[file]
         if lang ~= nil then
             l10n.removelang(lang)
-            log(("已卸载路径为\"%s\"的语言文件。"):format(file))
+            log(("The language file located at \"%s\" has been unloaded."):format(file))
         end
     end
 end

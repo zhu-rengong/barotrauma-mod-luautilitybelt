@@ -9,15 +9,15 @@ local log = require "utilbelt.logger" ("Think")
 ---@return boolean
 return function(args)
     if type(args) ~= "table" then
-        log(("须传入'table'参数！但却得到：'%s'。"):format(type(args)), 'e')
+        log(("A 'table' parameter must be passed, but got: '%s'!"):format(type(args)), 'e')
         return false
     end
     if type(args.identifier) ~= "string" then
-        log(("表域的索引identifier须为'string'！但却得到：'%s'。"):format(type(args.identifier)), 'e')
+        log(("The index 'identifier' of the table field must be 'string' type, but got '%s'!"):format(type(args.identifier)), 'e')
         return false
     end
     if type(args[1]) ~= "function" then
-        log(("表域的索引[1]须为'function'！但却得到：'%s'。"):format(type(args[1])), 'e')
+        log(("The index [1] of the table field must be 'function' type, but got '%s'!"):format(type(args[1])), 'e')
         return false
     end
 
