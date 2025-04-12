@@ -8,14 +8,14 @@ local chat = {}
 
 ---@class chatmsgbaseparams
 ---@field msgtypes? integer|integer[]
----@field color? userdata
+---@field color? Microsoft.Xna.Framework.Color
 ---@field style? string
 
----@class chatfsendparams : chatmsgbaseparams, { [1]:string, [2]:userdata }
+---@class chatfsendparams : chatmsgbaseparams, { [1]:string, [2]:Barotrauma.Networking.Client }
 ---@field boardcast? boolean # Only for client to determine whether the chat message should be send to others, default is true
 
 ---@class chatfboardcastparams : chatmsgbaseparams, { [1]:string }
----@field filter? fun(client:userdata):boolean
+---@field filter? fun(client:Barotrauma.Networking.Client):boolean
 
 ---@param params chatfsendparams
 function chat.send(params)
@@ -54,7 +54,7 @@ function chat.boardcast(params)
 end
 
 ---@class chatcommandoptions
----@field callback fun(client?:userdata, args:string[])
+---@field callback fun(client?:Barotrauma.Networking.Client, args:string[])
 ---@field help? string
 ---@field permissions? integer
 ---@field sort? integer
@@ -125,7 +125,7 @@ end
 
 Hook.Add("chatMessage", "utilbelt.chat",
     ---@param msg string
-    ---@param client userdata
+    ---@param client Barotrauma.Networking.Client
     function(msg, client)
         local split = ToolBox.SplitCommand(msg)
         if split[1] == nil then return end

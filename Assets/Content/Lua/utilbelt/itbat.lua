@@ -13,7 +13,7 @@ local moses = require "moses"
 ---@field excludedidentifiers? string|string[]
 ---@field excludedtags? string|string[]
 ---@field slotindex? integer|integer[]
----@field slottype? userdata[]
+---@field slottype? Barotrauma.InvSlotType[]
 ---@field quality? integer|integer[]
 ---@field equipped? boolean
 ---@field equip? boolean
@@ -21,8 +21,8 @@ local moses = require "moses"
 ---@field remove? boolean
 ---@field properties? sptbl
 ---@field spedit? spedit
----@field predicate? fun(item:userdata):boolean
----@field onmatched? fun(item:userdata)
+---@field predicate? fun(item:Barotrauma.Item):boolean
+---@field onmatched? fun(item:Barotrauma.Item)
 ---@field inventory? itembatchunitarg
 
 ---@class itembatchblock
@@ -35,19 +35,19 @@ local moses = require "moses"
 ---@field excludedIdentifiers? string[]
 ---@field excludedTags? string[]
 ---@field slotIndexList? integer[]
----@field slotTypeList? userdata[]
+---@field slotTypeList? Barotrauma.InvSlotType[]
 ---@field qualityList? integer[]
 ---@field equipped? boolean
 ---@field equip? boolean
 ---@field drop? boolean
 ---@field remove? boolean
 ---@field spedit? spedit
----@field predicate? fun(item:userdata):boolean
----@field onMatched? fun(item:userdata)
+---@field predicate? fun(item:Barotrauma.Item):boolean
+---@field onMatched? fun(item:Barotrauma.Item)
 ---@field inventory? itembatch
 
 ---@class itembatchctx
----@field character? userdata
+---@field character? Barotrauma.Character
 
 ---@class itembatch
 ---@field itemBatchUnit itembatchunit
@@ -127,7 +127,7 @@ function m:__init(itemBatchUnitArg, debugName, parentMark)
 end
 
 ---@param itemBatchUnit itembatchunit
----@param items userdata[]
+---@param items Barotrauma.Item[]
 ---@param context itembatchctx
 local function run(itemBatchUnit, items, context)
     moses.forEachi(itemBatchUnit, function(itemBlock)
@@ -207,12 +207,12 @@ local function run(itemBatchUnit, items, context)
     end)
 end
 
----@param items userdata[]
+---@param items Barotrauma.Item[]
 function m:run(items)
     run(self.itemBatchUnit, items, {})
 end
 
----@param inventory userdata
+---@param inventory Barotrauma.Inventory
 function m:runforinv(inventory)
     run(self.itemBatchUnit, moses.tabulate(inventory.AllItemsMod), {})
 end

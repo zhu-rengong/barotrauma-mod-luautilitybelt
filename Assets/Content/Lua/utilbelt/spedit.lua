@@ -64,7 +64,7 @@ function m:__init(sptbl, log)
     end
 end
 
----@param item userdata
+---@param item Barotrauma.Item
 ---@param log? log
 function m:apply(item, log)
     log = log or defaultlog
